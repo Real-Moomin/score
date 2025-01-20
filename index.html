@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>악보 PDF 생성기</title>
+    <script src="opencv.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --text-color: #ffffff;
+            --primary-color: #4a9eff;
+            --secondary-color: #2d2d2d;
+        }
+
+        body {
+            margin: 0;
+            padding: 0px 20px 20px 20px;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            letter-spacing: -0.5px;
+        }
+        h1{font-size: 24px;  flex: 2;
+        margin-left: 0px;}
+        .container {
+            max-width: 640px;
+            margin: 0 auto;
+            padding-top: 50px;
+        }
+
+        .upload-area {
+          margin-top: 32px;
+            border: 2px dashed var(--primary-color);
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            background: #222222;
+        }
+
+        .upload-area:hover {
+            background-color: var(--secondary-color);
+        }
+
+        .preview-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .preview-item {
+            position: relative;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: initial;
+            border-radius: 22px;
+            background-color: #222;
+        }
+
+        .preview-item img {
+            width: 50%;
+            border-radius: 22px;
+        }
+
+        .preview-item .file-info {
+            width: calc(50% - 30px);
+            margin-top: 5px;
+            color: #ddd;
+            text-overflow: ellipsis;
+            font-size: 17px;
+            text-align: left;
+            position: absolute;
+            top: 38px;
+            left: calc(50% + 12px);
+            word-break:break-all;
+            line-height: 1.55;
+        }
+        .preview-item .file-time {
+          width: 50%;
+          margin-top: 5px;
+          font-size: 15px;
+          text-align: left;
+          position: absolute;
+          top: 12px;
+          left: calc(50% + 12px);
+          color: #999;
+        }
+
+        .preview-item .delete-btn {
+            position: absolute;
+            right: calc(50% + 7px);
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            color: white;
+            width: 24px;
+            height: 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            top: 11px;
+        }
+
+        .preview-item .move-up{
+            margin-top: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            color: white;
+            border-radius: 24px;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 2px;
+            box-sizing: border-box;
+            width: 40px;
+            height: 40px;
+            position: absolute;
+            bottom: 50px;
+            left: 6px;
+        }
+
+        .preview-item .move-down{
+            margin-top: 5px;
+            background: rgba(0, 0, 0, 0.7);
+            border: none;
+            color: white;
+            border-radius: 24px;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 2px;
+            box-sizing: border-box;
+            width: 40px;
+            height: 40px;
+            position: absolute;
+            bottom: 5px;
+            left: 6px;
+
+        }
+
+        #loading {
+            display: none;
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top: 4px solid var(--primary-color);
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+          .nav  {position: fixed; top: 0px; left:0;
+                background: #111; width: 100%;z-index:999;}
+
+          .topNav {margin: 0;
+                  display:flex;
+                  justify-content: space-between;
+                  width: 100%;
+                  padding: 0px 16px;
+                  background: #111;
+                  }
+
+
+          .button {
+              color: var(--primary-color);
+              border: none;
+              border-radius: 5px;
+              cursor: pointer;
+              font-size: 20px;
+              width: auto;
+              background-color: #111;
+              margin-right: 36px;
+
+          }
+
+
+          .button:hover {
+            background-color: #111;
+          }
+
+          .button:disabled {
+              opacity: 0.3;
+              cursor: not-allowed;
+              background-color: #111;
+              color: white;
+
+          }
+
+    </style>
+</head>
+<body>
+  <div class="nav">
+  <div class="topNav">
+    <h1>악보 PDF 생성기</h1>
+    <button id="convertBtn" class="button" disabled>PDF 변환</button>
+  </div></div>
+  <div class="container">
+         <div class="upload-area" id="dropArea">
+             <p>이미지를 드래그하여 놓거나<br>클릭하여 선택하세요</p>
+             <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+         </div>
+         <div class="preview-container" id="previewContainer"></div>
+         <div id="loading">
+             <div class="spinner"></div>
+             <p>처리중...</p>
+         </div>
+
+
+    <script>
+        let images = [];
+        const dropArea = document.getElementById('dropArea');
+        const fileInput = document.getElementById('fileInput');
+        const previewContainer = document.getElementById('previewContainer');
+        const convertBtn = document.getElementById('convertBtn');
+        const loading = document.getElementById('loading');
+        const MAX_SIMULTANEOUS_PROCESS = 3;
+        const MAX_IMAGES = 20;
+
+        function onOpenCvReady() {
+            console.log('OpenCV.js is ready');
+        }
+        // 문서 윤곽선 감지 및 투시 변환
+        function detectAndTransform(mat) {
+            // 그레이스케일 변환
+            let gray = new cv.Mat();
+            cv.cvtColor(mat, gray, cv.COLOR_RGBA2GRAY);
+
+            // 가우시안 블러
+            let blur = new cv.Mat();
+            cv.GaussianBlur(gray, blur, new cv.Size(5, 5), 0);
+
+            // Canny 엣지 검출
+            let edges = new cv.Mat();
+            cv.Canny(blur, edges, 110, 170);
+
+            // 윤곽선 찾기
+            let contours = new cv.MatVector();
+            let hierarchy = new cv.Mat();
+            cv.findContours(edges, contours, hierarchy, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE);
+
+            // 가장 큰 윤곽선 찾기
+            let maxArea = 0;
+            let maxContourIndex = -1;
+            for (let i = 0; i < contours.size(); i++) {
+                let area = cv.contourArea(contours.get(i));
+                if (area > maxArea) {
+                    maxArea = area;
+                    maxContourIndex = i;
+                }
+            }
+
+            if (maxContourIndex === -1) {
+                // 윤곽선을 찾지 못한 경우 원본 반환
+                gray.delete(); blur.delete(); edges.delete();
+                contours.delete(); hierarchy.delete();
+                return mat;
+            }
+
+            // 윤곽선 근사화
+            let contour = contours.get(maxContourIndex);
+            let perimeter = cv.arcLength(contour, true);
+            let approx = new cv.Mat();
+            cv.approxPolyDP(contour, approx, 0.02 * perimeter, true);
+
+            // 4개의 꼭지점을 찾지 못한 경우 원본 반환
+            if (approx.rows !== 4) {
+                gray.delete(); blur.delete(); edges.delete();
+                contours.delete(); hierarchy.delete(); approx.delete();
+                return mat;
+            }
+
+            // 꼭지점 정렬
+            let points = [];
+            for (let i = 0; i < 4; i++) {
+                points.push([approx.data32S[i * 2], approx.data32S[i * 2 + 1]]);
+            }
+
+            // 좌상, 우상, 우하, 좌하 순서로 정렬
+            points.sort((a, b) => a[1] - b[1]);
+            let tl = points[0][0] < points[1][0] ? points[0] : points[1];
+            let tr = points[0][0] > points[1][0] ? points[0] : points[1];
+            let bl = points[2][0] < points[3][0] ? points[2] : points[3];
+            let br = points[2][0] > points[3][0] ? points[2] : points[3];
+
+            // 변환 행렬 계산
+            let srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+                tl[0], tl[1], tr[0], tr[1],
+                br[0], br[1], bl[0], bl[1]
+            ]);
+
+            let width = Math.max(
+                Math.sqrt(Math.pow(br[0] - bl[0], 2) + Math.pow(br[1] - bl[1], 2)),
+                Math.sqrt(Math.pow(tr[0] - tl[0], 2) + Math.pow(tr[1] - tl[1], 2))
+            );
+            let height = Math.max(
+                Math.sqrt(Math.pow(tr[0] - br[0], 2) + Math.pow(tr[1] - br[1], 2)),
+                Math.sqrt(Math.pow(tl[0] - bl[0], 2) + Math.pow(tl[1] - bl[1], 2))
+            );
+
+            let dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+                0, 0, width - 1, 0,
+                width - 1, height - 1, 0, height - 1
+            ]);
+
+            let M = cv.getPerspectiveTransform(srcTri, dstTri);
+            let transformed = new cv.Mat();
+            cv.warpPerspective(mat, transformed, M, new cv.Size(width, height));
+
+            // 메모리 해제
+            gray.delete(); blur.delete(); edges.delete();
+            contours.delete(); hierarchy.delete(); approx.delete();
+            srcTri.delete(); dstTri.delete(); M.delete();
+
+            return transformed;
+        }
+
+        async function processImage(imageData) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    try {
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+
+                        let width = img.width;
+                        let height = img.height;
+                        if (height > 2000) {
+                            width = width * (2000 / height);
+                            height = 2000;
+                        }
+
+                        canvas.width = width;
+                        canvas.height = height;
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        let src = cv.imread(canvas);
+                        src.convertTo(src, -1, 1.3, -33);
+                        let transformed = detectAndTransform(src);
+                        let gray = new cv.Mat();
+                        cv.cvtColor(transformed, gray, cv.COLOR_RGBA2GRAY);
+                        let contrast = new cv.Mat();
+                        // gray.convertTo(contrast, -1, 1.15, 0);
+                        cv.imshow(canvas, gray);
+
+                        // src.delete();
+                        // transformed.delete();
+                        // gray.delete();
+                        // contrast.delete();
+
+                        resolve(canvas.toDataURL());
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                img.onerror = reject;
+                img.src = imageData;
+            });
+        }
+
+        function updatePreview() {
+                  previewContainer.innerHTML = '';
+                  images.forEach((image, index) => {
+                      const div = document.createElement('div');
+                      div.className = 'preview-item';
+
+                      const img = document.createElement('img');
+                      img.src = image.src;
+
+                      const fileInfo1 = document.createElement('div');
+                      fileInfo1.className = 'file-info';
+                      fileInfo1.textContent = `${image.name}`;
+                      const fileInfo2 = document.createElement('div');
+                      fileInfo2.className = 'file-time';
+                      fileInfo2.textContent = `${image.date}`
+                      ;
+                      const deleteBtn = document.createElement('button');
+                      deleteBtn.className = 'delete-btn';
+                      deleteBtn.innerHTML = '×';
+                      deleteBtn.onclick = () => {
+                          images.splice(index, 1);
+                          updatePreview();
+                      };
+
+                      const moveUpBtn = document.createElement('button');
+                      moveUpBtn.className = 'move-up';
+                      moveUpBtn.textContent = '🡑';
+                      moveUpBtn.onclick = () => {
+                          if (index > 0) {
+                              [images[index - 1], images[index]] = [images[index], images[index - 1]];
+                              updatePreview();
+                          }
+                      };
+
+                      const moveDownBtn = document.createElement('button');
+                      moveDownBtn.className = 'move-down';
+                      moveDownBtn.textContent = '🡓';
+                      moveDownBtn.onclick = () => {
+                          if (index < images.length - 1) {
+                              [images[index + 1], images[index]] = [images[index], images[index + 1]];
+                              updatePreview();
+                          }
+                      };
+
+                      div.appendChild(img);
+                      div.appendChild(fileInfo1);
+                      div.appendChild(fileInfo2);
+                      div.appendChild(deleteBtn);
+                      div.appendChild(moveUpBtn);
+                      div.appendChild(moveDownBtn);
+                      previewContainer.appendChild(div);
+                  });
+
+                  convertBtn.disabled = images.length === 0;
+              }
+
+
+        async function processImagesBatch(imagesBatch) {
+            const promises = imagesBatch.map(image => processImage(image.src));
+            return await Promise.all(promises);
+        }
+
+        async function convertToPDF() {
+            loading.style.display = 'block';
+            convertBtn.disabled = true;
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF();
+
+                for (let i = 0; i < images.length; i += MAX_SIMULTANEOUS_PROCESS) {
+                    const batch = images.slice(i, i + MAX_SIMULTANEOUS_PROCESS);
+                    const processedBatch = await processImagesBatch(batch);
+
+                    processedBatch.forEach((processedImage, index) => {
+                        if (i + index > 0) {
+                            pdf.addPage();
+                        }
+
+                        const pdfWidth = pdf.internal.pageSize.getWidth();
+                        const pdfHeight = pdf.internal.pageSize.getHeight();
+
+                        pdf.addImage(processedImage, 'JPEG', 0, 0, pdfWidth, pdfHeight);
+                    });
+                }
+
+                pdf.save('sheet_music.pdf');
+            } catch (error) {
+                console.error('PDF 생성 중 오류 발생:', error);
+                alert('PDF 생성 중 오류가 발생했습니다.');
+            }
+
+            loading.style.display = 'none';
+            convertBtn.disabled = false;
+        }
+
+        dropArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropArea.style.backgroundColor = 'var(--secondary-color)';
+        });
+
+        dropArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropArea.style.backgroundColor = '';
+        });
+
+        dropArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropArea.style.backgroundColor = '';
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        });
+
+        dropArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+
+        function handleFiles(files) {
+             Array.from(files).forEach(file => {
+                 if (images.length >= MAX_IMAGES) {
+                     alert(`최대 ${MAX_IMAGES}개의 이미지만 업로드 가능합니다.`);
+                     return;
+                 }
+
+                 if (file.type.startsWith('image/')) {
+                     const reader = new FileReader();
+                     reader.onload = (e) => {
+                         const now = new Date();
+                         const dateStr = now.toISOString().replace('T', ' ').split('.')[0];
+                         images.push({
+                             src: e.target.result,
+                             name: file.name,
+                             date: dateStr
+                         });
+                         updatePreview();
+                     };
+                     reader.readAsDataURL(file);
+                 }
+             });
+         }
+
+        convertBtn.addEventListener('click', convertToPDF);
+    </script>
+</body>
+</html>
