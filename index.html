@@ -65,7 +65,7 @@
 
         .preview-item img {
             width: 50%;
-            border-radius: 22px;
+            border-radius: 22px 0px 0px 22px;
         }
 
         .preview-item .file-info {
@@ -94,15 +94,15 @@
 
         .preview-item .delete-btn {
             position: absolute;
-            right: calc(50% + 7px);
-            background: rgba(0, 0, 0, 0.7);
+            right:  11px;
+            background: rgba(0, 0, 0, 0.5);
             border: none;
-            color: white;
-            width: 24px;
-            height: 24px;
-            border-radius: 12px;
+            color: #999;
+            width: auto;
+            border-radius: 22px;
             cursor: pointer;
-            top: 11px;
+            bottom: 11px;
+            padding: 9px;
         }
 
         .preview-item .move-up{
@@ -386,7 +386,7 @@
                       ;
                       const deleteBtn = document.createElement('button');
                       deleteBtn.className = 'delete-btn';
-                      deleteBtn.innerHTML = '×';
+                      deleteBtn.innerHTML = '삭제';
                       deleteBtn.onclick = () => {
                           images.splice(index, 1);
                           updatePreview();
@@ -394,7 +394,7 @@
 
                       const moveUpBtn = document.createElement('button');
                       moveUpBtn.className = 'move-up';
-                      moveUpBtn.textContent = '🡑';
+                      moveUpBtn.textContent = '↑';
                       moveUpBtn.onclick = () => {
                           if (index > 0) {
                               [images[index - 1], images[index]] = [images[index], images[index - 1]];
@@ -404,7 +404,7 @@
 
                       const moveDownBtn = document.createElement('button');
                       moveDownBtn.className = 'move-down';
-                      moveDownBtn.textContent = '🡓';
+                      moveDownBtn.textContent = '↓';
                       moveDownBtn.onclick = () => {
                           if (index < images.length - 1) {
                               [images[index + 1], images[index]] = [images[index], images[index + 1]];
