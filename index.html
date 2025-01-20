@@ -202,7 +202,7 @@
 <body>
   <div class="nav">
   <div class="topNav">
-    <h1>악보 PDF 생성기</h1>
+    <h1>악보 PDF 생성기 <span style="font-size:14px">v1.01</span></h1>
     <button id="convertBtn" class="button" disabled>PDF 변환</button>
   </div></div>
   <div class="container">
@@ -335,9 +335,9 @@
 
                         let width = img.width;
                         let height = img.height;
-                        if (height > 1800) {
-                            width = width * (1800 / height);
-                            height = 1800;
+                        if (height > 1600) {
+                            width = width * (1600 / height);
+                            height = 1600;
                         }
 
                         canvas.width = width;
@@ -355,10 +355,8 @@
                         // gray.convertTo(contrast, -1, 1.15, 0);
                         cv.imshow(canvas, gray);
 
-                        // src.delete();
-                        // transformed.delete();
-                        // gray.delete();
-                        // contrast.delete();
+                        transformed.delete();
+
 
                         resolve(canvas.toDataURL());
                     } catch (error) {
